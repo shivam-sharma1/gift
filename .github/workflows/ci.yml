@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+      - name: Install and build client
+        working-directory: client
+        run: |
+          npm ci
+          npm run build
+      - name: Install server and check it loads
+        working-directory: server
+        env:
+          JWT_SECRET: ci-only-secret
+          DB_USERNAME: ci
+          DB_PASSWORD: ci
+        run: |
+          npm ci
+          node --input-type=module -e "import('./src/app.js').then(m => m.createApp())"

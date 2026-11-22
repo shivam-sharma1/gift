@@ -1,13 +1,17 @@
 import 'dotenv/config';
 
+// DB_USERNAME and DB_PASSWORD come from server/.env locally and from GitHub secrets in the cluster.
+for (const name of ['DB_USERNAME', 'DB_PASSWORD', 'JWT_SECRET']) {
+  if (!process.env[name]) throw new Error(`${name} is not set.`);
+}
+
+const { DB_USERNAME, DB_PASSWORD } = process.env;
+
 export const config = {
   port: Number(process.env.PORT) || 4000,
-  mongoUri: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/wedding-gifts',
+  mongoUri: `mongodb+srv://${encodeURIComponent(DB_USERNAME)}:${encodeURIComponent(DB_PASSWORD)}@portfolio.gbiris4.mongodb.net/`,
+  mongoDb: 'gift',
   jwtSecret: process.env.JWT_SECRET,
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   production: process.env.NODE_ENV === 'production',
 };
-
-if (!config.jwtSecret || config.jwtSecret === 'change-me') {
-  throw new Error('Set a strong JWT_SECRET in server/.env (see .env.example).');
-}

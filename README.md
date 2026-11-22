@@ -8,23 +8,27 @@ Wishlist and gift-fund dashboards for wedding guests and organisers.
 
 ## Run locally
 
-```bash
-# 1. MongoDB (local docker image)
-docker compose up -d
+The app uses the `gift` database on the MongoDB Atlas cluster `Portfolio`. Create `server/.env` with:
 
-# 2. API (http://localhost:4000)
+```
+DB_USERNAME=...
+DB_PASSWORD=...
+JWT_SECRET=<long random string>
+```
+
+In GitHub Actions use secrets with the same names (`DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`).
+
+```bash
+# API (http://localhost:4000)
 cd server
-cp .env.example .env      # then set JWT_SECRET to a long random string
 npm install
 npm run dev
 
-# 3. Web app (http://localhost:5173)
+# Web app (http://localhost:5173)
 cd client
 npm install
 npm run dev
 ```
-
-To use your own database, set `MONGODB_URI` in `server/.env`.
 
 ## Production
 
