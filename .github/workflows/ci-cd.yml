@@ -1,0 +1,126 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Deploys from main run one at a time and are never cut off half way.
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.ref) || 'deploy' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+      - name: Install and build client
+        working-directory: client
+        run: |
+          npm ci
+          npm run build
+      - name: Install server and check it loads
+        working-directory: server
+        env:
+          JWT_SECRET: ci-only-secret
+          DB_USERNAME: ci
+          DB_PASSWORD: ci
+        run: |
+          npm ci
+          node --input-type=module -e "import('./src/app.js').then(m => m.createApp())"
+
+  # Backend first, so the new frontend never talks to an older API.
+  deploy-api:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+      DB_USERNAME: ${{ secrets.DB_USERNAME }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+    steps:
+      - name: Push settings to Render and deploy
+        run: |
+          set -euo pipefail
+          for name in RENDER_API_KEY RENDER_SERVICE_ID DB_USERNAME DB_PASSWORD JWT_SECRET; do
+            [ -n "${!name}" ] || { echo "Secret $name is not set"; exit 1; }
+          done
+
+          base="https://api.render.com/v1/services/$RENDER_SERVICE_ID"
+          api() { curl -sS --fail-with-body -H "Authorization: Bearer $RENDER_API_KEY" -H "Content-Type: application/json" "$@"; }
+          origin="https://$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]').github.io"
+
+          # Render replaces the whole list, so every variable the API needs is listed here.
+          jq -n --arg origin "$origin" --arg user "$DB_USERNAME" --arg pass "$DB_PASSWORD" --arg jwt "$JWT_SECRET" \
+            '[{key:"NODE_ENV",value:"production"},{key:"CLIENT_ORIGIN",value:$origin},{key:"DB_USERNAME",value:$user},{key:"DB_PASSWORD",value:$pass},{key:"JWT_SECRET",value:$jwt}]' \
+            | api -X PUT "$base/env-vars" -d @- > /dev/null
+
+          response=$(api -X POST "$base/deploys" -d '{"clearCache":"do_not_clear"}')
+          deploy_id=$(echo "$response" | jq -r '.id // empty')
+          if [ -z "$deploy_id" ]; then
+            # A queued deploy returns no body; pick up the newest one instead.
+            deploy_id=$(api "$base/deploys?limit=1" | jq -r '.[0].deploy.id')
+          fi
+          echo "Render deploy $deploy_id started"
+
+          for _ in $(seq 1 60); do
+            status=$(api "$base/deploys/$deploy_id" | jq -r '.status')
+            echo "Status: $status"
+            case "$status" in
+              live) exit 0 ;;
+              build_failed|update_failed|pre_deploy_failed|canceled|deactivated) exit 1 ;;
+            esac
+            sleep 15
+          done
+          echo "Timed out waiting for the deploy"
+          exit 1
+
+  deploy-web:
+    needs: deploy-api
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - uses: actions/configure-pages@v5
+      - name: Build client
+        working-directory: client
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/
+          VITE_API_URL: ${{ vars.API_URL }}
+        run: |
+          [ -n "$VITE_API_URL" ] || { echo "Repository variable API_URL is not set"; exit 1; }
+          npm ci
+          npm run build
+          # GitHub Pages has no SPA fallback; serving the app as 404.html makes deep links like /e/CODE work.
+          cp dist/index.html dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: client/dist
+      - id: deployment
+        uses: actions/deploy-pages@v4

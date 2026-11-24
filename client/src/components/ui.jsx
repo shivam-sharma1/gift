@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { organizerApi } from '../api.js';
+import { assetUrl, organizerApi } from '../api.js';
 
 export const formatMoney = (currency, amount) =>
   `${currency}${currency.length > 1 ? ' ' : ''}${Number(amount).toLocaleString()}`;
@@ -82,7 +82,7 @@ export function Thumb({ src, className = '' }) {
   const hasImage = src && !broken;
   return (
     <div className={`thumb ${hasImage ? '' : 'empty'} ${className}`}>
-      {hasImage ? <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} /> : <GiftIcon />}
+      {hasImage ? <img src={assetUrl(src)} alt="" loading="lazy" onError={() => setBroken(true)} /> : <GiftIcon />}
     </div>
   );
 }
@@ -114,7 +114,7 @@ export function ImageField({ value, onChange }) {
       <div className="image-field">
         <Thumb src={value} />
         <div className="grow">
-          <input id="image-url" type="url" inputMode="url" placeholder="Paste an image link" value={value} onChange={(e) => onChange(e.target.value)} />
+          <input id="image-url" type="text" inputMode="url" placeholder="Paste an image link" value={value} onChange={(e) => onChange(e.target.value)} />
           <label className="btn btn-quiet btn-small file-btn">
             {busy ? 'Uploading...' : 'Or upload a photo'}
             <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={upload} disabled={busy} hidden />

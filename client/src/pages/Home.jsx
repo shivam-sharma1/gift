@@ -13,8 +13,11 @@ export default function Home() {
     e.preventDefault();
     try {
       const url = new URL(link.trim());
-      if (!/^\/e\/[A-Za-z0-9]+$/.test(url.pathname)) throw new Error('not an invite');
-      navigate({ pathname: url.pathname, hash: url.hash });
+      // Invite links include the app's base path (/gift/ on GitHub Pages); the router wants it removed.
+      const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+      const pathname = url.pathname.startsWith(`${base}/`) ? url.pathname.slice(base.length) : url.pathname;
+      if (!/^\/e\/[A-Za-z0-9]+$/.test(pathname)) throw new Error('not an invite');
+      navigate({ pathname, hash: url.hash });
     } catch {
       setError('That does not look like an invite link. Please paste the whole link you received.');
     }

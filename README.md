@@ -30,6 +30,10 @@ npm install
 npm run dev
 ```
 
-## Production
+## Deployment
 
-`cd client && npm run build`, then `cd server && npm start`. The API serves the built web app too.
+Every push to `main` runs [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml): build and check, deploy the API to Render, then deploy the web app to GitHub Pages.
+
+GitHub repo secrets: `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `RENDER_API_KEY`, `RENDER_SERVICE_ID`.
+GitHub repo variable: `API_URL` (the Render service URL, e.g. `https://gift-api.onrender.com`).
+Settings, Pages, Source must be set to "GitHub Actions".

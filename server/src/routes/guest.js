@@ -85,9 +85,10 @@ publicRouter.post('/events/:code/join', async (req, res) => {
   }
   const session = sessionFor(guest, event);
   // HttpOnly cookie: survives the app's own storage being cleared and can't be read or edited by page scripts.
+  // In production the web app is on another site, so the cookie must be SameSite=None (and Secure).
   res.cookie(cookieName(event), session.token, {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: config.production ? 'none' : 'lax',
     secure: config.production,
     path: '/api',
     maxAge: GUEST_TOKEN_DAYS * 24 * 60 * 60 * 1000,

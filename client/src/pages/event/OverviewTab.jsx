@@ -8,7 +8,7 @@ export default function OverviewTab({ base, data, eventKey, reload, onDeleted })
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   // The key sits after the # so browsers never send it to the server.
-  const link = eventKey ? `${window.location.origin}/e/${event.inviteCode}#k=${eventKey}` : '';
+  const link = eventKey ? `${window.location.origin}${import.meta.env.BASE_URL}e/${event.inviteCode}#k=${eventKey}` : '';
 
   async function copy(text) {
     try {

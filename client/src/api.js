@@ -28,6 +28,11 @@ export class ApiError extends Error {
   }
 }
 
+// Empty in local dev (the Vite proxy handles /api); the Render URL in production builds.
+const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
+export const assetUrl = (path) => (path?.startsWith('/api/') ? `${API_URL}${path}` : path);
+
 async function request(method, path, body, token) {
   const isForm = body instanceof FormData;
   const headers = {};
@@ -36,7 +41,13 @@ async function request(method, path, body, token) {
 
   let res;
   try {
-    res = await fetch(`/api${path}`, { method, headers, body: isForm ? body : body ? JSON.stringify(body) : undefined });
+    // credentials: the guest cookie must travel to the API on its own origin.
+    res = await fetch(`${API_URL}/api${path}`, {
+      method,
+      headers,
+      credentials: 'include',
+      body: isForm ? body : body ? JSON.stringify(body) : undefined,
+    });
   } catch {
     throw new ApiError('Cannot reach the server. Check your connection and try again.', 0);
   }

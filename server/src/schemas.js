@@ -14,7 +14,7 @@ const httpUrl = z
 
 const optionalLink = z.union([z.literal(''), httpUrl]);
 
-const uploadedImage = z.string().regex(/^\/uploads\/[a-f0-9]{32}\.(jpg|png|webp|gif)$/);
+const uploadedImage = z.string().regex(/^\/api\/uploads\/[a-f0-9]{24}$/);
 const optionalImage = z.union([z.literal(''), httpUrl, uploadedImage]);
 
 const name = z.string().trim().min(1, 'Required').max(100);

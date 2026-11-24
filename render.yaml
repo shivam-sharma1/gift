@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: gift-api
+    runtime: node
+    plan: free
+    region: singapore # keep close to the Atlas cluster's region
+    rootDir: server
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    # The GitHub Actions workflow deploys after CI passes, so Render must not deploy on its own.
+    autoDeployTrigger: 'off'
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_ORIGIN
+        value: https://shivam-sharma1.github.io
+      # The workflow overwrites these from GitHub secrets on every deploy.
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false

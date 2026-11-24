@@ -1,33 +1,33 @@
 import { Router } from 'express';
 import crypto from 'node:crypto';
-import path from 'node:path';
 import multer from 'multer';
-import { Contribution, Event, Fund, Guest, Item } from '../models.js';
+import { Contribution, Event, Fund, Guest, Item, Upload } from '../models.js';
 import { requireOrganizer } from '../auth.js';
 import { HttpError } from '../errors.js';
 import { createEventSchema, eventSchema, fundSchema, itemSchema } from '../schemas.js';
-import { uploadsDir } from '../paths.js';
 
 const router = Router();
 router.use(requireOrganizer);
 
-const EXTENSIONS = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
+const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: uploadsDir,
-    filename: (_req, file, cb) => cb(null, `${crypto.randomBytes(16).toString('hex')}.${EXTENSIONS[file.mimetype]}`),
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) =>
-    EXTENSIONS[file.mimetype]
+    IMAGE_TYPES.has(file.mimetype)
       ? cb(null, true)
       : cb(new HttpError(400, 'Only JPG, PNG, WebP or GIF images are allowed.')),
 });
 
-router.post('/uploads', upload.single('image'), (req, res) => {
+router.post('/uploads', upload.single('image'), async (req, res) => {
   if (!req.file) throw new HttpError(400, 'Choose an image to upload.');
-  res.status(201).json({ url: `/uploads/${path.basename(req.file.filename)}` });
+  const image = await Upload.create({
+    organizer: req.organizer._id,
+    contentType: req.file.mimetype,
+    data: req.file.buffer,
+  });
+  res.status(201).json({ url: `/api/uploads/${image.id}` });
 });
 
 // Unambiguous characters only, so codes are easy to read out or type on a phone.

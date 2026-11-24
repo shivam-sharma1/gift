@@ -89,9 +89,20 @@ const contributionSchema = new Schema(
 );
 contributionSchema.index({ fund: 1, guest: 1 }, { unique: true });
 
+// Images live in the database because the hosting disk is wiped on every deploy.
+const uploadSchema = new Schema(
+  {
+    organizer: ref('Organizer', { required: true }),
+    contentType: { type: String, required: true },
+    data: { type: Buffer, required: true },
+  },
+  { timestamps: true },
+);
+
 export const Organizer = mongoose.model('Organizer', organizerSchema);
 export const Event = mongoose.model('Event', eventSchema);
 export const Guest = mongoose.model('Guest', guestSchema);
 export const Item = mongoose.model('Item', itemSchema);
 export const Fund = mongoose.model('Fund', fundSchema);
 export const Contribution = mongoose.model('Contribution', contributionSchema);
+export const Upload = mongoose.model('Upload', uploadSchema);
