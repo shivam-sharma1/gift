@@ -16,6 +16,8 @@ services:
       - key: CLIENT_ORIGIN
         value: https://shivam-sharma1.github.io
       # The workflow overwrites these from GitHub secrets on every deploy.
+      - key: DB_HOST
+        sync: false
       - key: DB_USERNAME
         sync: false
       - key: DB_PASSWORD

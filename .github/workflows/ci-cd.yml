@@ -35,6 +35,7 @@ jobs:
         working-directory: server
         env:
           JWT_SECRET: ci-only-secret
+          DB_HOST: ci.example.com
           DB_USERNAME: ci
           DB_PASSWORD: ci
         run: |
@@ -49,6 +50,7 @@ jobs:
     env:
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+      DB_HOST: ${{ secrets.DB_HOST }}
       DB_USERNAME: ${{ secrets.DB_USERNAME }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
@@ -56,7 +58,7 @@ jobs:
       - name: Push settings to Render and deploy
         run: |
           set -euo pipefail
-          for name in RENDER_API_KEY RENDER_SERVICE_ID DB_USERNAME DB_PASSWORD JWT_SECRET; do
+          for name in RENDER_API_KEY RENDER_SERVICE_ID DB_HOST DB_USERNAME DB_PASSWORD JWT_SECRET; do
             [ -n "${!name}" ] || { echo "Secret $name is not set"; exit 1; }
           done
 
@@ -65,8 +67,8 @@ jobs:
           origin="https://$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]').github.io"
 
           # Render replaces the whole list, so every variable the API needs is listed here.
-          jq -n --arg origin "$origin" --arg user "$DB_USERNAME" --arg pass "$DB_PASSWORD" --arg jwt "$JWT_SECRET" \
-            '[{key:"NODE_ENV",value:"production"},{key:"CLIENT_ORIGIN",value:$origin},{key:"DB_USERNAME",value:$user},{key:"DB_PASSWORD",value:$pass},{key:"JWT_SECRET",value:$jwt}]' \
+          jq -n --arg origin "$origin" --arg host "$DB_HOST" --arg user "$DB_USERNAME" --arg pass "$DB_PASSWORD" --arg jwt "$JWT_SECRET" \
+            '[{key:"NODE_ENV",value:"production"},{key:"CLIENT_ORIGIN",value:$origin},{key:"DB_HOST",value:$host},{key:"DB_USERNAME",value:$user},{key:"DB_PASSWORD",value:$pass},{key:"JWT_SECRET",value:$jwt}]' \
             | api -X PUT "$base/env-vars" -d @- > /dev/null
 
           response=$(api -X POST "$base/deploys" -d '{"clearCache":"do_not_clear"}')
